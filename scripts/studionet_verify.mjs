@@ -82,11 +82,15 @@ async function waitState(label, probe) {
   }
   throw new Error(`Canonical-state timeout: ${label}`);
 }
-async function createMandate(scenario, id) {
+async function createMandate(scenario, id, challengeWindow = 60n) {
   await mustWrite(scenario, "create_mandate", [id, `${scenario} mandate`,
     "Pay the approved security auditor for the completed audit. Do not create upgrade, treasury, emergency, or administrative authority.",
-    "", target, value, bond, 60n]);
+    "", target, value, bond, challengeWindow]);
   return waitState(`${id} created`, async () => (await read("get_mandate", [id])).status === "active");
+}
+async function waitPastDeadline(state, challengeWindow) {
+  const remainingMs = Math.max(0, (Number(state.reviewed_at) + Number(challengeWindow)) * 1000 - Date.now() + 5000);
+  if (remainingMs > 0) await delay(remainingMs);
 }
 async function propose(scenario, executionId, mandateId, proposalTarget, hash, plan) {
   await mustWrite(scenario, "propose_execution", [executionId, mandateId, proposalTarget, value, hash, plan,
@@ -108,7 +112,8 @@ await mustWrite("setup", "set_paused", [false]);
 
 const safeMandate = `praxis-safe-m-${stamp}`;
 const safeExecution = `praxis-safe-e-${stamp}`;
-await createMandate("safe", safeMandate);
+const safeWindow = 600n;
+await createMandate("safe", safeMandate, safeWindow);
 await propose("safe", safeExecution, safeMandate, target, safeHash, `${rawBase}/safe_execution_plan.md`);
 let safeState = await reviewUntilTerminal("safe", safeExecution);
 if (safeState.verdict !== "authorized") throw new Error(`Safe execution was not authorized: ${json(safeState)}`);
@@ -116,7 +121,7 @@ await mustWrite("safe-challenge", "challenge_execution", [safeExecution], bond);
 await waitState("safe challenged", async () => (await read("get_execution", [safeExecution])).status === "proposed");
 safeState = await reviewUntilTerminal("safe-challenge", safeExecution);
 if (safeState.verdict !== "authorized" || BigInt(safeState.challenge_bond_held) !== 0n) throw new Error("Challenge re-review or bond settlement failed");
-await delay(70000);
+await waitPastDeadline(safeState, safeWindow);
 const executable = await read("is_executable", [safeExecution]);
 if (!executable.executable) throw new Error(`Authorized execution did not become consumable: ${json(executable)}`);
 await mustWrite("pause-consistency", "set_paused", [true]);
@@ -154,7 +159,7 @@ await createMandate("challenge-expiry", expiryMandate);
 await propose("challenge-expiry", expiryExecution, expiryMandate, target, safeHash, `${rawBase}/safe_execution_plan.md`);
 const expiryState = await reviewUntilTerminal("challenge-expiry", expiryExecution);
 if (expiryState.verdict !== "authorized") throw new Error("Challenge-expiry setup was not authorized");
-await delay(70000);
+await waitPastDeadline(expiryState, 60n);
 await mustReject("challenge-expiry", "challenge_execution", [expiryExecution], bond);
 if ((await read("get_execution", [expiryExecution])).status !== "reviewed") throw new Error("Expired challenge mutated execution state");
 

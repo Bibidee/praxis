@@ -4,6 +4,8 @@ Praxis is a contract-only semantic execution firewall: it lets an authority publ
 
 There is no frontend or off-chain decision service. The canonical deployable source is [`contracts/praxis.py`](contracts/praxis.py).
 
+Canonical Studionet deployment: [`0x7f2F0aE07B7bcFec1709794F12A44813DB8BD071`](https://explorer-studio.genlayer.com/address/0x7f2F0aE07B7bcFec1709794F12A44813DB8BD071). Exact source parity and live transaction evidence are recorded in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
 ## Why this primitive exists
 
 Transaction allowlists can constrain an address and value, but they cannot determine whether a natural-language execution plan preserves a mandate's purpose, recipient, constraints, and authority boundaries. Praxis combines both layers:
@@ -40,7 +42,7 @@ python -m venv .venv
 .venv/Scripts/python scripts/preflight.py
 ```
 
-The final verified test count and canonical Studionet evidence are recorded in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). `tests/conftest.py` is test infrastructure and the linter is explicitly scoped to `contracts/praxis.py`, avoiding accidental treatment of tests as deployable contracts.
+The final local result is 24 Direct Mode tests passed, plus 15 preflight source invariants and successful GenVM lint/schema validation. `tests/conftest.py` is test infrastructure and the linter is explicitly scoped to `contracts/praxis.py`, avoiding accidental treatment of tests as deployable contracts.
 
 Studionet commands are documented in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Consensus boundaries and threat assumptions are in [`docs/CONSENSUS.md`](docs/CONSENSUS.md) and [`SECURITY.md`](SECURITY.md).
 

@@ -6,7 +6,7 @@ import pytest
 
 @pytest.mark.skipif(os.getenv("RUN_STUDIONET") != "1", reason="Set RUN_STUDIONET=1 for funded live verification")
 def test_studionet_matrix():
-    required = ("PRAXIS_CONTRACT", "PRAXIS_KEYSTORE", "PRAXIS_WALLET_PASSWORD")
+    required = ("PRAXIS_CONTRACT", "PRAXIS_KEYSTORE", "PRAXIS_WALLET_PASSWORD", "PRAXIS_FIXTURE_COMMIT")
     assert all(os.getenv(item) for item in required)
     result = subprocess.run(["node", "scripts/studionet_verify.mjs"], check=False, text=True, capture_output=True)
     print(result.stdout)

@@ -11,4 +11,8 @@ Reviewer evidence:
 - committed Studionet deployment/parity/runtime scripts;
 - no frontend and no CI workflow.
 
-Live deployment identifiers are intentionally omitted until the exact main-branch source is deployed and verified.
+Canonical Studionet deployment: `0x7f2F0aE07B7bcFec1709794F12A44813DB8BD071`, transaction `0xc8ce8a247a1564b2e74bfbf8cb008ac91f3180cfab550d9b6fa7ff0984d0eff3`. Explorer and local source SHA-256 are both `80d5fe0bdfda523ca9ce22ba878efbb4669013a89ec5024c108e7fc2538f954d`. The full live matrix returned `exactSafety: true`; see `docs/DEPLOYMENT.md`.
+
+The authority-only proposer model prevents outsiders from consuming bounded mandate capacity. Challenges require the exact bond, occur at most once, and are valid only before the deadline. Validators independently fetch and reproduce the eight load-bearing semantic/binding decisions; rationale remains diagnostic. Deterministic code derives the verdict, controls state transitions, and requires a 75 confidence floor for authorization.
+
+Praxis intentionally does not prove that prose correctly decodes arbitrary calldata or make downstream execution atomic. Consumers must independently verify target, value, and `keccak256(actual_calldata)` before coordinating consumption and execution.
