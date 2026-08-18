@@ -11,7 +11,7 @@ Reviewer evidence:
 - committed Studionet deployment/parity/runtime scripts;
 - no frontend and no CI workflow.
 
-Canonical Studionet deployment: `0x7f2F0aE07B7bcFec1709794F12A44813DB8BD071`, transaction `0xc8ce8a247a1564b2e74bfbf8cb008ac91f3180cfab550d9b6fa7ff0984d0eff3`. Explorer and local source SHA-256 are both `80d5fe0bdfda523ca9ce22ba878efbb4669013a89ec5024c108e7fc2538f954d`. The full live matrix returned `exactSafety: true`; see `docs/DEPLOYMENT.md`.
+Canonical Studionet deployment: `0x2a60858a993E10A403FfBE63B50B5B121F00C337`, transaction `0x946e93610a7aaa07d2682d1268cea5d12c5bc7a29480b809b7ab2b17ff17c184`. Explorer and local source SHA-256 are both `50702b1e7d8f257344bfeac68b822f752fe2a8ea77cfbfce1e4505af2d809a86`. Exact source parity and the full `exactSafety: true` matrix passed; see `docs/DEPLOYMENT.md`.
 
 The owner-only mandate allocator prevents outsiders from consuming the lifetime global mandate or execution pools; mandate authorities alone allocate their proposal slots. This is a narrow, documented centralization tradeoff for bounded permanent storage. Challenges require the exact bond, occur at most once, and are valid only before the deadline. Validators independently fetch and reproduce the eight load-bearing semantic/binding decisions; rationale remains diagnostic.
 

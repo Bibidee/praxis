@@ -4,7 +4,7 @@ Praxis is a contract-only semantic execution firewall: it lets an authority publ
 
 There is no frontend or off-chain decision service. The canonical deployable source is [`contracts/praxis.py`](contracts/praxis.py).
 
-The current canonical Studionet deployment and exact source-parity evidence are recorded in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+Canonical Studionet deployment: [`0x2a60858a993E10A403FfBE63B50B5B121F00C337`](https://explorer-studio.genlayer.com/address/0x2a60858a993E10A403FfBE63B50B5B121F00C337). Exact source-parity and runtime evidence are recorded in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## Why this primitive exists
 
