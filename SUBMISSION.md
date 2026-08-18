@@ -5,8 +5,8 @@ Praxis is a reusable semantic execution firewall rather than a product applicati
 Reviewer evidence:
 
 - one canonical contract: `contracts/praxis.py`;
-- 20 passing Direct Mode tests, including forged-leader, malformed-output, strict-type, lifecycle, challenge, pause, and downstream-gate cases;
-- 11 zero-dependency source invariants;
+- 24 passing Direct Mode tests, including forged-leader, malformed-output, strict-type, authority-only capacity protection, deadline boundaries, lifecycle, challenge, pause, and downstream-gate cases;
+- 15 zero-dependency source invariants;
 - current GenVM lint and schema validation pass;
 - committed Studionet deployment/parity/runtime scripts;
 - no frontend and no CI workflow.

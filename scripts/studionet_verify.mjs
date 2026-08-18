@@ -19,20 +19,43 @@ const bond = 10000000000000000n;
 const transactions = [];
 const states = [];
 const json = input => JSON.stringify(input, (_, item) => typeof item === "bigint" ? item.toString() : item);
-const rawBase = "https://raw.githubusercontent.com/Bibidee/praxis/main/fixtures";
+const fixtureCommit = process.env.PRAXIS_FIXTURE_COMMIT;
+if (!/^[0-9a-f]{40}$/.test(fixtureCommit || "")) throw new Error("PRAXIS_FIXTURE_COMMIT must be an immutable 40-character commit SHA");
+const rawBase = `https://raw.githubusercontent.com/Bibidee/praxis/${fixtureCommit}/fixtures`;
+const RPC_MIN_INTERVAL_MS = 2500;
+let lastRpcAt = 0;
+
+async function throttled(operation) {
+  const wait = RPC_MIN_INTERVAL_MS - (Date.now() - lastRpcAt);
+  if (wait > 0) await delay(wait);
+  lastRpcAt = Date.now();
+  return operation();
+}
+
+async function rpc(operation, attempts = 8) {
+  let last;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try { return await throttled(operation); }
+    catch (error) { last = error; await delay(Math.min(2000 * (attempt + 1), 10000)); }
+  }
+  throw last;
+}
 
 async function read(functionName, args = []) {
-  return client.readContract({ address, functionName, args, transactionHashVariant: "latest-final" });
+  return rpc(() => client.readContract({ address, functionName, args, transactionHashVariant: "latest-final" }));
 }
 async function terminal(hash) {
   for (let attempt = 0; attempt < 180; attempt++) {
-    await delay(5000); const tx = await client.getTransaction({ hash });
+    await delay(5000);
+    let tx;
+    try { tx = await rpc(() => client.getTransaction({ hash }), 4); }
+    catch { continue; }
     if (["FINALIZED", "UNDETERMINED", "CANCELED"].includes(tx.statusName)) return tx;
   }
   throw new Error(`Transaction timeout: ${hash}`);
 }
 async function write(scenario, functionName, args, txValue = 0n) {
-  const hash = await client.writeContract({ address, functionName, args, value: txValue, consensusMaxRotations: 5 });
+  const hash = await throttled(() => client.writeContract({ address, functionName, args, value: txValue, consensusMaxRotations: 5 }));
   const tx = await terminal(hash); const validators = tx.consensus_data?.validators || [];
   const validator = validators.find(item => Buffer.from(item.result || "", "base64").toString("utf8") !== "\u0002idle") || validators[0];
   const record = { scenario, functionName, hash, status: tx.statusName, result: tx.result_name,
@@ -45,6 +68,11 @@ function accepted(record) {
 async function mustWrite(scenario, functionName, args, txValue = 0n) {
   const record = await write(scenario, functionName, args, txValue);
   if (!accepted(record)) throw new Error(`${functionName} failed: ${json(record)}`);
+  return record;
+}
+async function mustReject(scenario, functionName, args, txValue = 0n) {
+  const record = await write(scenario, functionName, args, txValue);
+  if (accepted(record)) throw new Error(`${functionName} unexpectedly succeeded: ${json(record)}`);
   return record;
 }
 async function waitState(label, probe) {
@@ -91,11 +119,17 @@ if (safeState.verdict !== "authorized" || BigInt(safeState.challenge_bond_held) 
 await delay(70000);
 const executable = await read("is_executable", [safeExecution]);
 if (!executable.executable) throw new Error(`Authorized execution did not become consumable: ${json(executable)}`);
+await mustWrite("pause-consistency", "set_paused", [true]);
+const pausedExecutable = await read("is_executable", [safeExecution]);
+if (pausedExecutable.executable) throw new Error("Paused contract reported execution as executable");
+await mustWrite("pause-consistency", "set_paused", [false]);
+if (!(await read("is_executable", [safeExecution])).executable) throw new Error("Unpaused execution did not become executable again");
 await mustWrite("safe", "consume_execution", [safeExecution]);
 safeState = await waitState("safe consumed", async () => {
   const row = await read("get_execution", [safeExecution]); return row.status === "consumed" ? row : null;
 });
 states.push({ scenario: "safe", stage: "consumed", state: safeState });
+await mustReject("safe-replay", "consume_execution", [safeExecution]);
 
 const deterministicMandate = `praxis-target-m-${stamp}`;
 const deterministicExecution = `praxis-target-e-${stamp}`;
@@ -114,6 +148,16 @@ if (hostileState.verdict === "authorized") throw new Error(`Authority-expanding 
 if (!['blocked', 'inconclusive'].includes(hostileState.verdict)) throw new Error("Hostile plan produced unknown verdict");
 states.push({ scenario: "semantic-negative", stage: hostileState.verdict, state: hostileState });
 
+const expiryMandate = `praxis-expiry-m-${stamp}`;
+const expiryExecution = `praxis-expiry-e-${stamp}`;
+await createMandate("challenge-expiry", expiryMandate);
+await propose("challenge-expiry", expiryExecution, expiryMandate, target, safeHash, `${rawBase}/safe_execution_plan.md`);
+const expiryState = await reviewUntilTerminal("challenge-expiry", expiryExecution);
+if (expiryState.verdict !== "authorized") throw new Error("Challenge-expiry setup was not authorized");
+await delay(70000);
+await mustReject("challenge-expiry", "challenge_execution", [expiryExecution], bond);
+if ((await read("get_execution", [expiryExecution])).status !== "reviewed") throw new Error("Expired challenge mutated execution state");
+
 const cancelMandate = `praxis-cancel-m-${stamp}`;
 const cancelExecution = `praxis-cancel-e-${stamp}`;
 await createMandate("cancellation", cancelMandate);
@@ -124,7 +168,7 @@ const cancelled = await waitState("cancelled", async () => {
 });
 states.push({ scenario: "cancellation", stage: "cancelled", state: cancelled });
 
-const exactSafety = safeState.status === "consumed" && deterministicState.verdict === "blocked" &&
+const exactSafety = safeState.status === "consumed" && deterministicState.verdict === "blocked" && !pausedExecutable.executable &&
   hostileState.verdict !== "authorized" && cancelled.status === "cancelled" && BigInt(safeState.challenge_bond_held) === 0n;
 console.log(json({ contract: address, exactSafety, transactions, states }));
 if (!exactSafety) process.exitCode = 1;

@@ -5,7 +5,7 @@ This document describes one exact proposed execution.
 - Purpose: pay the approved security auditor after delivery of the completed audit.
 - Target: `0x1111111111111111111111111111111111111111`
 - Value in wei: `100000000000000000`
-- Calldata SHA-256 commitment: `0xabababababababababababababababababababababababababababababababab`
+- Calldata Keccak-256 commitment: `0xabababababababababababababababababababababababababababababababab`
 - Permissions created: none.
 - Upgrade or administrative authority granted: none.
 - Other transfers or calls: none.

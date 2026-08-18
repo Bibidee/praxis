@@ -331,6 +331,7 @@ class Praxis(gl.Contract):
         if not re.match(r"^0x[0-9a-f]{64}$", calldata_hash): raise gl.vm.UserError(f"{EXPECTED} Invalid calldata hash")
         plan_url = validate_url(plan_url, "plan_url"); summary = validate_text(summary, "summary", MAX_SUMMARY)
         mandate = self._mandate(mandate_id)
+        self._authority(mandate)
         if mandate.status != MANDATE_ACTIVE: raise gl.vm.UserError(f"{EXPECTED} Mandate is not accepting executions")
         if self.executions.get(execution_id) is not None: raise gl.vm.UserError(f"{EXPECTED} execution_id already exists")
         if int(self.execution_count) >= MAX_EXECUTIONS or int(mandate.execution_count) >= MAX_EXECUTIONS_PER_MANDATE:
@@ -395,6 +396,8 @@ class Praxis(gl.Contract):
         self._active(); execution = self._execution(execution_id); mandate = self._mandate(str(execution.mandate_id))
         if execution.status != REVIEWED or execution.verdict == BLOCKED or int(execution.challenge_count) >= 1:
             raise gl.vm.UserError(f"{EXPECTED} Execution cannot be challenged")
+        if transaction_timestamp() >= int(execution.reviewed_at) + int(mandate.challenge_window):
+            raise gl.vm.UserError(f"{EXPECTED} Challenge window has closed")
         if int(gl.message.value) != int(mandate.challenge_bond): raise gl.vm.UserError(f"{EXPECTED} Exact challenge bond required")
         execution.status, execution.verdict = PROPOSED, ""
         execution.challenge_count, execution.challenger = u256(1), gl.message.sender_address
@@ -418,7 +421,7 @@ class Praxis(gl.Contract):
     @gl.public.view
     def is_executable(self, execution_id: str) -> dict:
         execution = self._execution(execution_id); mandate = self._mandate(str(execution.mandate_id)); now = transaction_timestamp()
-        executable = (execution.status == REVIEWED and execution.verdict == AUTHORIZED and mandate.status == MANDATE_ACTIVE
+        executable = (not self.paused and execution.status == REVIEWED and execution.verdict == AUTHORIZED and mandate.status == MANDATE_ACTIVE
             and now >= int(execution.reviewed_at) + int(mandate.challenge_window))
         return {"execution_id": execution_id, "mandate_id": str(execution.mandate_id), "executable": executable,
             "target": str(execution.target), "declared_value": str(execution.declared_value), "calldata_hash": str(execution.calldata_hash),

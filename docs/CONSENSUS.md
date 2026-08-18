@@ -8,10 +8,12 @@ The validator does not trust the leader payload. It rejects a malformed envelope
 
 Verdict derivation is deterministic:
 
-- `authorized`: purpose, recipient, constraints, plan hash, plan target, and plan value are all `yes`; authority expansion and hidden side effects are `no`; confidence is at least 70.
+- `authorized`: purpose, recipient, constraints, plan hash, plan target, and plan value are all `yes`; authority expansion and hidden side effects are `no`; confidence is at least 75.
 - `blocked`: a material mismatch or forbidden authority/side effect is positively identified.
 - `inconclusive`: every other well-formed observation.
 
 Fetch failures, empty evidence, malformed output, and unavailable inference are explicit retryable errors. They do not become authorization.
 
 Challenge settlement is also deterministic. One exact bond can reopen an authorized or inconclusive review. On re-review, a non-authorized result returns the bond to the challenger; an authorized result transfers it to the mandate authority. A held bond remains resolvable during a global pause or after mandate closure so administrative action cannot trap it.
+
+The challenge deadline is exact: a challenge is valid only when `now < reviewed_at + challenge_window`; equality or a later timestamp is expired. Blocked outcomes are not challengeable and a proposal can be challenged only once. Global pause blocks new challenges, but never blocks re-review of a proposal with a held bond.

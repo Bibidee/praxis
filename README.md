@@ -8,7 +8,7 @@ There is no frontend or off-chain decision service. The canonical deployable sou
 
 Transaction allowlists can constrain an address and value, but they cannot determine whether a natural-language execution plan preserves a mandate's purpose, recipient, constraints, and authority boundaries. Praxis combines both layers:
 
-1. deterministic code enforces target, value, lifecycle, access control, replay protection, challenge timing, and bounded storage;
+1. deterministic code enforces authority-only proposal creation, target, value, lifecycle, access control, replay protection, challenge timing, and bounded storage;
 2. validators independently fetch the disclosed evidence and reason about semantic fidelity;
 3. exact agreement is required on the load-bearing decision fields;
 4. only an `authorized` result that survives its challenge window becomes executable.
@@ -19,7 +19,7 @@ Removing GenLayer consensus would replace independent observation with trust in 
 
 `create_mandate` → `propose_execution` → `review_execution` → challenge window → `consume_execution`
 
-A proposal may instead become `blocked`, `inconclusive`, `cancelled`, or return to `proposed` after its single bonded challenge. Consumers integrate through `is_executable`, then independently verify that the transaction they execute has the returned target, value, and calldata hash.
+A proposal may instead become `blocked`, `inconclusive`, `cancelled`, or return to `proposed` after its single bonded challenge. Only the mandate authority may create proposals, preventing outsiders from exhausting its bounded capacity. A challenge is allowed only while `now < reviewed_at + challenge_window`. Consumers integrate through `is_executable`, then independently verify the actual target, value, and Keccak-256 calldata commitment.
 
 The plan evidence must explicitly reproduce the exact committed target, value, and calldata hash. This binds the semantic review to the execution commitment; it does not decode or execute calldata on behalf of an integrator.
 
@@ -40,13 +40,13 @@ python -m venv .venv
 .venv/Scripts/python scripts/preflight.py
 ```
 
-The verified local baseline is 20 Direct Mode tests passing, plus a preflight covering 11 source invariants and successful GenVM lint/schema validation. `tests/conftest.py` is test infrastructure and the linter is explicitly scoped to `contracts/praxis.py`, avoiding accidental treatment of tests as deployable contracts.
+The final verified test count and canonical Studionet evidence are recorded in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). `tests/conftest.py` is test infrastructure and the linter is explicitly scoped to `contracts/praxis.py`, avoiding accidental treatment of tests as deployable contracts.
 
 Studionet commands are documented in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Consensus boundaries and threat assumptions are in [`docs/CONSENSUS.md`](docs/CONSENSUS.md) and [`SECURITY.md`](SECURITY.md).
 
 ## Scope and limitations
 
-Praxis is an authorization signal, not an executor, oracle of objective truth, or guarantee that prose accurately decodes arbitrary calldata. Integrators must bind and verify the actual transaction bytes against the committed hash. Web availability and genuine validator disagreement fail closed without mutating an accepted review state.
+Praxis is an authorization signal, not an executor, oracle of objective truth, or guarantee that prose accurately decodes arbitrary calldata. Integrators must verify `keccak256(actual_calldata) == calldata_hash` and coordinate consumption with downstream execution; Praxis cannot make that separate call atomic. Web availability and genuine validator disagreement fail closed without mutating an accepted review state.
 
 ## Repository policy
 

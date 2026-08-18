@@ -64,6 +64,7 @@ def test_urls_ids_text_and_hash_are_bounded(direct_vm, direct_deploy):
     create(c)
     with direct_vm.expect_revert("calldata hash"): c.propose_execution("e", "mandate-1", TARGET, ONE, "0x12", PLAN, "summary")
     with direct_vm.expect_revert("plan_url"): propose(c, plan="https://localhost/private")
+    with direct_vm.expect_revert("plan_url"): propose(c, plan="https://127.0.0.1/private")
 
 
 def test_access_control_pause_and_mandate_transitions(direct_vm, direct_deploy, direct_alice):
@@ -89,11 +90,26 @@ def test_proposal_storage_capacity_and_cancellation(direct_vm, direct_deploy, di
     c.cancel_execution("execution-1"); assert c.get_execution("execution-1")["status"] == "cancelled"
 
 
+def test_only_mandate_authority_can_propose_or_consume_capacity(direct_vm, direct_deploy, direct_alice):
+    c = deploy(direct_vm, direct_deploy); create(c)
+    with direct_vm.prank(direct_alice):
+        for index in range(32):
+            with direct_vm.expect_revert("Mandate authority"): propose(c, f"attacker-{index}")
+    assert c.get_mandate("mandate-1")["execution_count"] == 0
+    for index in range(32): propose(c, f"authorized-{index}")
+    assert c.get_mandate("mandate-1")["execution_count"] == 32
+    with direct_vm.expect_revert("capacity"): propose(c, "authorized-overflow")
+
+
 def test_deterministic_target_and_value_floor_blocks_without_model(direct_vm, direct_deploy):
     c = deploy(direct_vm, direct_deploy); create(c); propose(c, target=OTHER)
     c.review_execution("execution-1"); row = c.get_execution("execution-1")
     assert row["verdict"] == "blocked" and row["confidence"] == 100
     assert c.is_executable("execution-1")["executable"] is False
+    create(c, "mandate-2", max_value=ONE)
+    propose(c, "execution-2", "mandate-2", value=ONE + 1)
+    c.review_execution("execution-2")
+    assert c.get_execution("execution-2")["verdict"] == "blocked"
 
 
 def test_authorized_review_and_delayed_consumption(direct_vm, direct_deploy):
@@ -105,8 +121,10 @@ def test_authorized_review_and_delayed_consumption(direct_vm, direct_deploy):
     warp_to(direct_vm, "2026-08-18T08:01:01Z")
     assert c.is_executable("execution-1")["executable"] is True
     c.set_paused(True)
+    assert c.is_executable("execution-1")["executable"] is False
     with direct_vm.expect_revert("Contract is paused"): c.consume_execution("execution-1")
     c.set_paused(False)
+    assert c.is_executable("execution-1")["executable"] is True
     c.consume_execution("execution-1")
     assert c.get_execution("execution-1")["status"] == "consumed"
     with direct_vm.expect_revert("not authorized"): c.consume_execution("execution-1")
@@ -125,6 +143,15 @@ def test_missing_exact_plan_binding_fails_closed(direct_vm, direct_deploy):
     mock_result(direct_vm, plan_hash="unclear")
     c.review_execution("execution-1")
     assert c.get_execution("execution-1")["verdict"] == "blocked"
+
+
+def test_confidence_threshold_is_exactly_seventy_five(direct_vm, direct_deploy):
+    c = deploy(direct_vm, direct_deploy); create(c); propose(c); mock_result(direct_vm, confidence=74)
+    c.review_execution("execution-1")
+    assert c.get_execution("execution-1")["verdict"] == "inconclusive"
+    create(c, "mandate-2"); propose(c, "execution-2", "mandate-2"); mock_result(direct_vm, confidence=75)
+    c.review_execution("execution-2")
+    assert c.get_execution("execution-2")["verdict"] == "authorized"
 
 
 def test_quality_and_rationale_validated_but_not_equivalent(direct_vm, direct_deploy):
@@ -184,6 +211,29 @@ def test_exact_challenge_bond_and_single_challenge(direct_vm, direct_deploy, dir
         direct_vm.value = ONE // 10
         with direct_vm.expect_revert("cannot be challenged"): c.challenge_execution("execution-1")
         direct_vm.value = 0
+
+
+def test_challenge_deadline_boundaries(direct_vm, direct_deploy, direct_alice):
+    c = deploy(direct_vm, direct_deploy); create(c); propose(c); mock_result(direct_vm); c.review_execution("execution-1")
+    warp_to(direct_vm, "2026-08-18T08:00:59Z")
+    with direct_vm.prank(direct_alice):
+        direct_vm.value = ONE // 10; c.challenge_execution("execution-1"); direct_vm.value = 0
+    mock_result(direct_vm); c.review_execution("execution-1")
+    # Re-review starts a new window, but the one-challenge limit remains permanent.
+    with direct_vm.prank(direct_alice):
+        direct_vm.value = ONE // 10
+        with direct_vm.expect_revert("cannot be challenged"): c.challenge_execution("execution-1")
+        direct_vm.value = 0
+
+
+def test_challenge_at_or_after_deadline_fails(direct_vm, direct_deploy, direct_alice):
+    c = deploy(direct_vm, direct_deploy); create(c); propose(c); mock_result(direct_vm); c.review_execution("execution-1")
+    for timestamp in ("2026-08-18T08:01:00Z", "2026-08-18T08:01:01Z"):
+        warp_to(direct_vm, timestamp)
+        with direct_vm.prank(direct_alice):
+            direct_vm.value = ONE // 10
+            with direct_vm.expect_revert("Challenge window has closed"): c.challenge_execution("execution-1")
+            direct_vm.value = 0
 
 
 def test_authorized_challenge_bond_goes_to_authority_and_cannot_cancel_held_bond(direct_vm, direct_deploy, direct_alice):
