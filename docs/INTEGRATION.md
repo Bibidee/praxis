@@ -1,6 +1,6 @@
 # Integration guide
 
-An authority creates a mandate and is the only account permitted to create proposals against its bounded capacity. It commits the proposed call using `target`, `declared_value`, and a 32-byte `calldata_hash`, plus an immutable HTTPS plan URL that explicitly states those exact values and explains the call's effects.
+The contract owner creates a mandate, becoming its authority and the only account permitted to create proposals against its bounded capacity. Global and per-mandate counters are lifetime allocations and are not reclaimed. A proposal commits `target`, `declared_value`, and a 32-byte `calldata_hash`, plus an immutable HTTPS plan URL that explicitly states those exact values and explains the call's effects.
 
 After `review_execution` reaches `reviewed`, consumers call `is_executable`. Execute only when `executable` is true, and verify locally that:
 

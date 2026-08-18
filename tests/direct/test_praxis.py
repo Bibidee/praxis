@@ -49,6 +49,33 @@ def test_create_mandate_and_info(direct_vm, direct_deploy):
     assert mandate["created_at"] == NOW and c.get_info()["mandate_count"] == 1
 
 
+def test_only_owner_can_allocate_global_mandate_or_execution_capacity(direct_vm, direct_deploy, direct_alice):
+    c = deploy(direct_vm, direct_deploy)
+    with direct_vm.prank(direct_alice):
+        for index in range(256):
+            with direct_vm.expect_revert("Contract owner"): create(c, f"attacker-mandate-{index}")
+    assert c.get_info()["mandate_count"] == 0 and c.get_info()["execution_count"] == 0
+    create(c)
+    with direct_vm.prank(direct_alice):
+        with direct_vm.expect_revert("Mandate authority"): propose(c, "attacker-execution")
+    assert c.get_mandate("mandate-1")["execution_count"] == 0
+    assert c.get_info()["execution_count"] == 0
+    propose(c)
+    assert c.get_info()["mandate_count"] == 1 and c.get_info()["execution_count"] == 1
+
+
+def test_failed_and_duplicate_allocations_do_not_increment_counters(direct_vm, direct_deploy):
+    c = deploy(direct_vm, direct_deploy); create(c); propose(c)
+    before = c.get_info()
+    with direct_vm.expect_revert("already exists"): create(c)
+    with direct_vm.expect_revert("already exists"): propose(c)
+    with direct_vm.expect_revert("calldata hash"):
+        c.propose_execution("bad-execution", "mandate-1", TARGET, ONE, "0x12", PLAN, "summary")
+    after = c.get_info()
+    assert after["mandate_count"] == before["mandate_count"] == 1
+    assert after["execution_count"] == before["execution_count"] == 1
+
+
 def test_create_rejects_duplicate_zero_target_and_bad_configuration(direct_vm, direct_deploy):
     c = deploy(direct_vm, direct_deploy); create(c)
     with direct_vm.expect_revert("already exists"): create(c)

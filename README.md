@@ -4,13 +4,13 @@ Praxis is a contract-only semantic execution firewall: it lets an authority publ
 
 There is no frontend or off-chain decision service. The canonical deployable source is [`contracts/praxis.py`](contracts/praxis.py).
 
-Canonical Studionet deployment: [`0x7f2F0aE07B7bcFec1709794F12A44813DB8BD071`](https://explorer-studio.genlayer.com/address/0x7f2F0aE07B7bcFec1709794F12A44813DB8BD071). Exact source parity and live transaction evidence are recorded in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+The current canonical Studionet deployment and exact source-parity evidence are recorded in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## Why this primitive exists
 
 Transaction allowlists can constrain an address and value, but they cannot determine whether a natural-language execution plan preserves a mandate's purpose, recipient, constraints, and authority boundaries. Praxis combines both layers:
 
-1. deterministic code enforces authority-only proposal creation, target, value, lifecycle, access control, replay protection, challenge timing, and bounded storage;
+1. deterministic code enforces owner-only mandate allocation, authority-only proposal creation, target, value, lifecycle, replay protection, challenge timing, and bounded storage;
 2. validators independently fetch the disclosed evidence and reason about semantic fidelity;
 3. exact agreement is required on the load-bearing decision fields;
 4. only an `authorized` result that survives its challenge window becomes executable.
@@ -21,7 +21,7 @@ Removing GenLayer consensus would replace independent observation with trust in 
 
 `create_mandate` → `propose_execution` → `review_execution` → challenge window → `consume_execution`
 
-A proposal may instead become `blocked`, `inconclusive`, `cancelled`, or return to `proposed` after its single bonded challenge. Only the mandate authority may create proposals, preventing outsiders from exhausting its bounded capacity. A challenge is allowed only while `now < reviewed_at + challenge_window`. Consumers integrate through `is_executable`, then independently verify the actual target, value, and Keccak-256 calldata commitment.
+A proposal may instead become `blocked`, `inconclusive`, `cancelled`, or return to `proposed` after its single bonded challenge. Only the contract owner can create mandates, and only that mandate's authority can create proposals. This deliberately centralizes allocation of the lifetime global capacity so outsiders cannot exhaust it. A challenge is allowed only while `now < reviewed_at + challenge_window`.
 
 The plan evidence must explicitly reproduce the exact committed target, value, and calldata hash. This binds the semantic review to the execution commitment; it does not decode or execute calldata on behalf of an integrator.
 
@@ -42,7 +42,7 @@ python -m venv .venv
 .venv/Scripts/python scripts/preflight.py
 ```
 
-The final local result is 24 Direct Mode tests passed, plus 15 preflight source invariants and successful GenVM lint/schema validation. `tests/conftest.py` is test infrastructure and the linter is explicitly scoped to `contracts/praxis.py`, avoiding accidental treatment of tests as deployable contracts.
+The final local result is 26 Direct Mode tests passed, plus 16 preflight source invariants and successful GenVM lint/schema validation. `tests/conftest.py` is test infrastructure and the linter is explicitly scoped to `contracts/praxis.py`, avoiding accidental treatment of tests as deployable contracts.
 
 Studionet commands are documented in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Consensus boundaries and threat assumptions are in [`docs/CONSENSUS.md`](docs/CONSENSUS.md) and [`SECURITY.md`](SECURITY.md).
 

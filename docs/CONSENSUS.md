@@ -2,6 +2,8 @@
 
 `review_execution` first applies a deterministic safety floor. A target outside the mandate or a value above its cap is blocked without model inference.
 
+Resource allocation is deterministic and precedes semantic consensus. Only the contract owner can create mandates, and only a mandate authority can create its proposals. Global and per-mandate bounds are lifetime limits; terminal records remain available for audit and do not reclaim capacity.
+
 For candidates that pass that floor, each validator independently fetches the constitution and execution-plan evidence and runs the same bounded assessment. Untrusted source text is JSON-encoded as data and explicitly excluded from the instruction hierarchy. Model output is strictly parsed, type-checked, range-checked, and reduced to bounded fields before any storage mutation.
 
 The validator does not trust the leader payload. It rejects a malformed envelope and independently recomputes the observation. Exact equality is required for the eight semantic/binding choices and their derived verdict. Diagnostic prose and evidence-quality wording are not consensus dimensions. Exactness is deliberately conservative: disagreement produces no accepted mutation rather than averaging away a security boundary.

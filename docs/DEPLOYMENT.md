@@ -1,4 +1,6 @@
-# Canonical deployment evidence
+# Superseded deployment evidence
+
+This deployment predates the owner-only global capacity allocation fix and is not canonical for the current contract source. A new canonical deployment will replace this record after exact-source verification.
 
 | Field | Verified value |
 |---|---|

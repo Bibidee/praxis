@@ -300,7 +300,9 @@ class Praxis(gl.Contract):
     @gl.public.write
     def create_mandate(self, mandate_id: str, title: str, mandate_text: str, constitution_url: str,
                        allowed_target: str, max_value: u256, challenge_bond: u256, challenge_window: u256) -> None:
-        self._active(); mandate_id = validate_id(mandate_id, "mandate_id")
+        self._active()
+        if gl.message.sender_address != self.owner: raise gl.vm.UserError(f"{EXPECTED} Contract owner only")
+        mandate_id = validate_id(mandate_id, "mandate_id")
         title = validate_text(title, "title", MAX_TITLE); mandate_text = validate_text(mandate_text, "mandate_text", MAX_TEXT)
         constitution_url = validate_url(constitution_url, "constitution_url", True)
         target = Address(allowed_target)
