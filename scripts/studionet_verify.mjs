@@ -85,7 +85,7 @@ async function waitState(label, probe) {
 async function createMandate(scenario, id, challengeWindow = 60n) {
   await mustWrite(scenario, "create_mandate", [id, `${scenario} mandate`,
     "Pay the approved security auditor for the completed audit. Do not create upgrade, treasury, emergency, or administrative authority.",
-    "", target, value, bond, challengeWindow]);
+    `${rawBase}/governance_policy.md`, target, value, bond, challengeWindow]);
   return waitState(`${id} created`, async () => (await read("get_mandate", [id])).status === "active");
 }
 async function waitPastDeadline(state, challengeWindow) {
