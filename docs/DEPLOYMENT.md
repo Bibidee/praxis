@@ -6,6 +6,7 @@
 | Contract | `0x7f2F0aE07B7bcFec1709794F12A44813DB8BD071` |
 | Deployment transaction | `0xc8ce8a247a1564b2e74bfbf8cb008ac91f3180cfab550d9b6fa7ff0984d0eff3` |
 | Contract source commit | `db88898b3fd455d575b2efcc9c8f002e72ac2819` |
+| Runtime evidence record commit | `92beec3def735d953c4c1b89cfa51b9c75bb8d42` |
 | Immutable fixture commit | `db88898b3fd455d575b2efcc9c8f002e72ac2819` |
 | Local source SHA-256 | `80d5fe0bdfda523ca9ce22ba878efbb4669013a89ec5024c108e7fc2538f954d` |
 | Explorer source SHA-256 | `80d5fe0bdfda523ca9ce22ba878efbb4669013a89ec5024c108e7fc2538f954d` |
