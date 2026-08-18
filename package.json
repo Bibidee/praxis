@@ -1,0 +1,15 @@
+{
+  "name": "praxis-contract",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy:studionet": "node scripts/deploy_studionet.mjs",
+    "verify:studionet": "node scripts/studionet_verify.mjs",
+    "source:match": "node scripts/source_match.mjs"
+  },
+  "dependencies": {
+    "ethers": "^6.15.0",
+    "genlayer-js": "^1.1.8",
+    "viem": "^2.37.2"
+  }
+}
