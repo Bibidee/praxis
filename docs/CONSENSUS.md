@@ -16,6 +16,6 @@ Verdict derivation is deterministic:
 
 Fetch failures, empty evidence, malformed output, and unavailable inference are explicit retryable errors. They do not become authorization.
 
-Challenge settlement is also deterministic. One exact bond can reopen an authorized or inconclusive review. On re-review, a non-authorized result returns the bond to the challenger; an authorized result transfers it to the mandate authority. A held bond remains resolvable during a global pause or after mandate closure so administrative action cannot trap it.
+Challenge settlement is also deterministic. One exact bond can reopen an authorized or inconclusive review. On re-review, a non-authorized result returns the bond to the challenger; an authorized result transfers it to the mandate authority. If nondeterministic review remains unavailable until `challenged_at + challenge_window`, the permissionless `settle_expired_challenge` route refunds the full bond to the challenger and cancels the execution. Both re-review and timeout settlement remain available during a global pause or after mandate closure so neither infrastructure failure nor administrative action can trap the bond.
 
 The challenge deadline is exact: a challenge is valid only when `now < reviewed_at + challenge_window`; equality or a later timestamp is expired. Blocked outcomes are not challengeable and a proposal can be challenged only once. Global pause blocks new challenges, but never blocks re-review of a proposal with a held bond.

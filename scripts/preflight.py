@@ -11,7 +11,7 @@ source = CONTRACTS[0].read_text(encoding="utf-8")
 tree = ast.parse(source)
 required = ["run_nondet_unsafe", "equivalent_analysis", "valid_analysis", "verdict_for", "plan_hash_match",
             "challenge_execution", "consume_execution", "is_executable", "MAX_EXECUTIONS_PER_MANDATE",
-            "self._authority(mandate)", "Contract owner only", "Challenge window has closed", "not self.paused",
+            "settle_expired_challenge", "challenged_at", "self._authority(mandate)", "Contract owner only", "Challenge window has closed", "not self.paused",
             "DECISION_CONFIDENCE = 75"]
 missing = [item for item in required if item not in source]
 if missing: raise SystemExit(f"Missing source invariants: {missing}")

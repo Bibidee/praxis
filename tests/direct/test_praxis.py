@@ -272,6 +272,31 @@ def test_authorized_challenge_bond_goes_to_authority_and_cannot_cancel_held_bond
     assert c.get_execution("execution-1")["challenge_bond_held"] == "0"
 
 
+def test_expired_challenge_refunds_bond_and_cancels_execution(direct_vm, direct_deploy, direct_alice):
+    c = deploy(direct_vm, direct_deploy); create(c); propose(c); mock_result(direct_vm); c.review_execution("execution-1")
+    warp_to(direct_vm, "2026-08-18T08:00:30Z")
+    with direct_vm.prank(direct_alice):
+        direct_vm.value = ONE // 10; c.challenge_execution("execution-1"); direct_vm.value = 0
+    row = c.get_execution("execution-1")
+    assert row["challenged_at"] > 0 and row["challenge_bond_held"] == str(ONE // 10)
+    with direct_vm.expect_revert("settlement timeout is open"): c.settle_expired_challenge("execution-1")
+    warp_to(direct_vm, "2026-08-18T08:01:30Z")
+    c.settle_expired_challenge("execution-1")
+    row = c.get_execution("execution-1")
+    assert row["status"] == "cancelled" and row["verdict"] == "" and row["challenge_bond_held"] == "0"
+    with direct_vm.expect_revert("No held challenge bond"): c.settle_expired_challenge("execution-1")
+
+
+def test_expired_challenge_settlement_works_while_paused_and_mandate_closed(direct_vm, direct_deploy, direct_alice):
+    c = deploy(direct_vm, direct_deploy); create(c); propose(c); mock_result(direct_vm); c.review_execution("execution-1")
+    with direct_vm.prank(direct_alice):
+        direct_vm.value = ONE // 10; c.challenge_execution("execution-1"); direct_vm.value = 0
+    c.set_mandate_status("mandate-1", "closed"); c.set_paused(True)
+    warp_to(direct_vm, "2026-08-18T08:01:00Z")
+    c.settle_expired_challenge("execution-1")
+    assert c.get_execution("execution-1")["challenge_bond_held"] == "0"
+
+
 def test_pause_blocks_new_review_challenge_and_consumption_but_not_bond_resolution(direct_vm, direct_deploy, direct_alice):
     c = deploy(direct_vm, direct_deploy); create(c); propose(c); mock_result(direct_vm); c.review_execution("execution-1")
     with direct_vm.prank(direct_alice):

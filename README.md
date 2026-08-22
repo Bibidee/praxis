@@ -21,13 +21,13 @@ Removing GenLayer consensus would replace independent observation with trust in 
 
 `create_mandate` → `propose_execution` → `review_execution` → challenge window → `consume_execution`
 
-A proposal may instead become `blocked`, `inconclusive`, `cancelled`, or return to `proposed` after its single bonded challenge. Only the contract owner can create mandates, and only that mandate's authority can create proposals. This deliberately centralizes allocation of the lifetime global capacity so outsiders cannot exhaust it. A challenge is allowed only while `now < reviewed_at + challenge_window`.
+A proposal may instead become `blocked`, `inconclusive`, `cancelled`, or return to `proposed` after its single bonded challenge. Only the contract owner can create mandates, and only that mandate's authority can create proposals. This deliberately centralizes allocation of the lifetime global capacity so outsiders cannot exhaust it. A challenge is allowed only while `now < reviewed_at + challenge_window`. If re-review remains unavailable for a full `challenge_window` after `challenged_at`, anyone can call `settle_expired_challenge`; it refunds the challenger and cancels the execution, including during pause or mandate closure.
 
 The plan evidence must explicitly reproduce the exact committed target, value, and calldata hash. This binds the semantic review to the execution commitment; it does not decode or execute calldata on behalf of an integrator.
 
 ## Public interface
 
-Writes: `set_paused`, `create_mandate`, `set_mandate_status`, `propose_execution`, `review_execution`, `challenge_execution`, `consume_execution`, `cancel_execution`.
+Writes: `set_paused`, `create_mandate`, `set_mandate_status`, `propose_execution`, `review_execution`, `challenge_execution`, `settle_expired_challenge`, `consume_execution`, `cancel_execution`.
 
 Views: `is_executable`, `get_mandate`, `get_execution`, `list_mandate_executions`, `get_info`.
 
@@ -42,7 +42,7 @@ python -m venv .venv
 .venv/Scripts/python scripts/preflight.py
 ```
 
-The final local result is 26 Direct Mode tests passed, plus 16 preflight source invariants and successful GenVM lint/schema validation. `tests/conftest.py` is test infrastructure and the linter is explicitly scoped to `contracts/praxis.py`, avoiding accidental treatment of tests as deployable contracts.
+The final local result is 28 Direct Mode tests passed, plus 18 preflight source invariants and successful GenVM lint/schema validation. `tests/conftest.py` is test infrastructure and the linter is explicitly scoped to `contracts/praxis.py`, avoiding accidental treatment of tests as deployable contracts.
 
 Studionet commands are documented in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Consensus boundaries and threat assumptions are in [`docs/CONSENSUS.md`](docs/CONSENSUS.md) and [`SECURITY.md`](SECURITY.md).
 

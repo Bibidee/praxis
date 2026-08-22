@@ -1,4 +1,4 @@
-# v1.0.0
+# v1.1.0
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 """Praxis: a semantic execution firewall for human-approved mandates."""
 
@@ -84,6 +84,7 @@ class ExecutionProposal:
     consumed_at: u256
     challenge_count: u256
     challenger: Address
+    challenged_at: u256
     challenge_bond_held: u256
 
 
@@ -101,6 +102,10 @@ class ExecutionReviewed(gl.Event):
 
 class ExecutionConsumed(gl.Event):
     def __init__(self, execution_id: str, authority: Address, /, **blob): ...
+
+
+class ChallengeExpired(gl.Event):
+    def __init__(self, execution_id: str, challenger: Address, /, **blob): ...
 
 
 @gl.evm.contract_interface
@@ -342,7 +347,7 @@ class Praxis(gl.Contract):
         self.executions[execution_id] = ExecutionProposal(execution_id, mandate_id, gl.message.sender_address,
             Address(target), declared_value, calldata_hash, plan_url, summary, PROPOSED, "", "unknown", "unknown",
             "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", u256(0), "unknown", "",
-            u256(now), u256(0), u256(0), u256(0), zero, u256(0))
+            u256(now), u256(0), u256(0), u256(0), zero, u256(0), u256(0))
         mandate.execution_count = u256(int(mandate.execution_count) + 1)
         self.execution_count = u256(int(self.execution_count) + 1); self._append_id(mandate_id, execution_id)
         ExecutionProposed(execution_id, mandate_id).emit()
@@ -403,7 +408,21 @@ class Praxis(gl.Contract):
         if int(gl.message.value) != int(mandate.challenge_bond): raise gl.vm.UserError(f"{EXPECTED} Exact challenge bond required")
         execution.status, execution.verdict = PROPOSED, ""
         execution.challenge_count, execution.challenger = u256(1), gl.message.sender_address
+        execution.challenged_at = u256(transaction_timestamp())
         execution.challenge_bond_held = mandate.challenge_bond
+
+    @gl.public.write
+    def settle_expired_challenge(self, execution_id: str) -> None:
+        execution = self._execution(execution_id); mandate = self._mandate(str(execution.mandate_id))
+        held = int(execution.challenge_bond_held)
+        if execution.status != PROPOSED or held <= 0 or int(execution.challenged_at) <= 0:
+            raise gl.vm.UserError(f"{EXPECTED} No held challenge bond")
+        if transaction_timestamp() < int(execution.challenged_at) + int(mandate.challenge_window):
+            raise gl.vm.UserError(f"{EXPECTED} Challenge settlement timeout is open")
+        challenger = str(execution.challenger)
+        execution.challenge_bond_held = u256(0)
+        execution.status, execution.verdict = CANCELLED, ""
+        self._send_gen(challenger, u256(held)); ChallengeExpired(execution_id, execution.challenger).emit()
 
     @gl.public.write
     def consume_execution(self, execution_id: str) -> None:
@@ -448,7 +467,8 @@ class Praxis(gl.Contract):
             "plan_hash_match": str(value.plan_hash_match), "plan_target_match": str(value.plan_target_match), "plan_value_match": str(value.plan_value_match),
             "confidence": int(value.confidence), "evidence_quality": str(value.evidence_quality), "rationale": str(value.rationale),
             "proposed_at": int(value.proposed_at), "reviewed_at": int(value.reviewed_at), "consumed_at": int(value.consumed_at),
-            "challenge_count": int(value.challenge_count), "challenger": str(value.challenger), "challenge_bond_held": str(value.challenge_bond_held)}
+            "challenge_count": int(value.challenge_count), "challenger": str(value.challenger), "challenged_at": int(value.challenged_at),
+            "challenge_bond_held": str(value.challenge_bond_held)}
 
     @gl.public.view
     def list_mandate_executions(self, mandate_id: str, offset: u256, limit: u256) -> list[dict]:
@@ -459,6 +479,6 @@ class Praxis(gl.Contract):
 
     @gl.public.view
     def get_info(self) -> dict:
-        return {"name": "Praxis", "version": "1.0.0", "owner": self.owner.as_hex, "paused": bool(self.paused),
+        return {"name": "Praxis", "version": "1.1.0", "owner": self.owner.as_hex, "paused": bool(self.paused),
             "mandate_count": int(self.mandate_count), "execution_count": int(self.execution_count),
             "max_mandates": MAX_MANDATES, "max_executions": MAX_EXECUTIONS, "max_executions_per_mandate": MAX_EXECUTIONS_PER_MANDATE}
