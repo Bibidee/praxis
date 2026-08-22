@@ -163,6 +163,23 @@ await waitPastDeadline(expiryState, 60n);
 await mustReject("challenge-expiry", "challenge_execution", [expiryExecution], bond);
 if ((await read("get_execution", [expiryExecution])).status !== "reviewed") throw new Error("Expired challenge mutated execution state");
 
+const timeoutMandate = `praxis-timeout-m-${stamp}`;
+const timeoutExecution = `praxis-timeout-e-${stamp}`;
+const timeoutWindow = 600n;
+await createMandate("challenge-timeout", timeoutMandate, timeoutWindow);
+await propose("challenge-timeout", timeoutExecution, timeoutMandate, target, safeHash, `${rawBase}/safe_execution_plan.md`);
+const timeoutState = await reviewUntilTerminal("challenge-timeout", timeoutExecution);
+if (timeoutState.verdict !== "authorized") throw new Error("Challenge-timeout setup was not authorized");
+await mustWrite("challenge-timeout", "challenge_execution", [timeoutExecution], bond);
+await waitState("timeout challenged", async () => (await read("get_execution", [timeoutExecution])).status === "proposed");
+await waitPastDeadline({ reviewed_at: (await read("get_execution", [timeoutExecution])).challenged_at }, timeoutWindow);
+await mustWrite("challenge-timeout", "settle_expired_challenge", [timeoutExecution]);
+const timeoutSettled = await waitState("timeout settled", async () => {
+  const row = await read("get_execution", [timeoutExecution]);
+  return row.status === "cancelled" && BigInt(row.challenge_bond_held) === 0n ? row : null;
+});
+states.push({ scenario: "challenge-timeout", stage: "refunded-cancelled", state: timeoutSettled });
+
 const cancelMandate = `praxis-cancel-m-${stamp}`;
 const cancelExecution = `praxis-cancel-e-${stamp}`;
 await createMandate("cancellation", cancelMandate);
@@ -174,6 +191,7 @@ const cancelled = await waitState("cancelled", async () => {
 states.push({ scenario: "cancellation", stage: "cancelled", state: cancelled });
 
 const exactSafety = safeState.status === "consumed" && deterministicState.verdict === "blocked" && !pausedExecutable.executable &&
-  hostileState.verdict !== "authorized" && cancelled.status === "cancelled" && BigInt(safeState.challenge_bond_held) === 0n;
+  hostileState.verdict !== "authorized" && cancelled.status === "cancelled" && timeoutSettled.status === "cancelled" &&
+  BigInt(safeState.challenge_bond_held) === 0n && BigInt(timeoutSettled.challenge_bond_held) === 0n;
 console.log(json({ contract: address, exactSafety, transactions, states }));
 if (!exactSafety) process.exitCode = 1;
