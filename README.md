@@ -25,6 +25,12 @@ A proposal may instead become `blocked`, `inconclusive`, `cancelled`, or return 
 
 The plan evidence must explicitly reproduce the exact committed target, value, and calldata hash. This binds the semantic review to the execution commitment; it does not decode or execute calldata on behalf of an integrator.
 
+### Challenge-bond liveness guarantee
+
+`challenge_execution` records the on-chain `challenged_at` timestamp and holds the exact bond. After `challenged_at + challenge_window`, `settle_expired_challenge` is permissionless: it clears the held bond, refunds it to the recorded challenger, and permanently cancels the execution. It cannot run early, cannot settle an unchallenged execution, and cannot be run twice. The method deliberately bypasses the normal active-mandate gate, so a global pause or mandate closure cannot strand a challenger while external evidence or model infrastructure is unavailable.
+
+This is a settlement route, not an authorization shortcut: it never creates a verdict or makes an execution consumable. The live timeout settlement [finalized successfully on Studionet](https://explorer-studio.genlayer.com/tx/0x7cc12a99b8323bd9d82c1cfc347413ff36a47914819173502972b10ab50157b3), leaving the execution cancelled with a zero held-bond balance.
+
 ## Public interface
 
 Writes: `set_paused`, `create_mandate`, `set_mandate_status`, `propose_execution`, `review_execution`, `challenge_execution`, `settle_expired_challenge`, `consume_execution`, `cancel_execution`.

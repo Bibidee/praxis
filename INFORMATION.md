@@ -1,40 +1,42 @@
-# Praxis — Submission Information
+# Praxis — Steward Review Response
 
-## Submission
+## Review request addressed
 
-- **Category:** GenLayer Intelligent Contract
-- **Type:** Standalone, contract-only reusable primitive
+The steward identified a liveness failure: after a bonded challenge, an unavailable plan page or model could make re-review revert indefinitely. The bond remained held, ordinary cancellation was unavailable, and no expiry path could settle it.
+
+## Resolution
+
+Praxis v1.1.0 adds the public write method `settle_expired_challenge(execution_id)`.
+
+`challenge_execution` now records `challenged_at`. Once `challenged_at + challenge_window` has elapsed, any account can call `settle_expired_challenge`. The contract atomically:
+
+1. verifies the execution is still challenged and has a held bond;
+2. clears the held-bond balance;
+3. marks the execution `cancelled` with no verdict; and
+4. returns the complete bond to the recorded challenger.
+
+The route intentionally does not depend on the plan page, model availability, an owner transaction, or a successful re-review. It remains callable while the contract is globally paused and after the mandate has been closed. A challenger therefore has a deterministic on-chain exit even when external evidence infrastructure is unavailable.
+
+## Safety properties
+
+- **No early withdrawal:** settlement reverts before the exact expiry boundary.
+- **No arbitrary withdrawal:** it requires a proposed execution, a recorded challenge timestamp, and a positive held bond.
+- **No double settlement:** the first settlement clears the held bond and cancels the execution; a later call fails its state checks.
+- **No forced re-review:** the timeout route resolves only the held bond and proposal lifecycle. It does not manufacture an authorization verdict.
+- **Failure-safe behavior:** unavailable evidence or model responses cannot lock challenger funds indefinitely.
+
+## Matching deployed source and live evidence
+
 - **Repository:** https://github.com/Bibidee/praxis
-- **Canonical contract:** [`0x076aeCCc66673C93B54FafaB9C56Eb10fBc9D9Ed`](https://explorer-studio.genlayer.com/address/0x076aeCCc66673C93B54FafaB9C56Eb10fBc9D9Ed)
+- **Canonical Studionet contract:** [`0x076aeCCc66673C93B54FafaB9C56Eb10fBc9D9Ed`](https://explorer-studio.genlayer.com/address/0x076aeCCc66673C93B54FafaB9C56Eb10fBc9D9Ed)
 - **Deployment transaction:** [`0x543acd04b12f2f7763923445570a5307d4c5ff194146135b0cdb84904009ef78`](https://explorer-studio.genlayer.com/tx/0x543acd04b12f2f7763923445570a5307d4c5ff194146135b0cdb84904009ef78)
+- **Live timeout settlement:** [`0x7cc12a99b8323bd9d82c1cfc347413ff36a47914819173502972b10ab50157b3`](https://explorer-studio.genlayer.com/tx/0x7cc12a99b8323bd9d82c1cfc347413ff36a47914819173502972b10ab50157b3) — finalized successfully; the execution was cancelled and its held bond became zero.
 - **Canonical source commit:** `130ff693f665dfc5e385c1b03ebab8796c7dfbba`
 - **Source SHA-256:** `687dcde0a00f838c6b063794b4c8d71739c5795bcff085f1cc4b15279d4d1f39`
-- **Deployed-source parity:** exact byte match verified
+- **Source parity:** the deployed source and `contracts/praxis.py` match exactly.
 
-## What Praxis does
+## Verification
 
-Praxis is a semantic execution firewall for mandate-driven actions. An owner creates an immutable mandate with a permitted target, maximum value, challenge configuration, and semantic constraints. The mandate authority then commits a proposed execution and its Keccak-256 calldata commitment.
+The updated source passed 28 Direct Mode tests, 18 preflight source invariants, GenVM lint, and schema validation. The Studionet verification matrix includes timeout settlement, early-settlement rejection, duplicate-settlement rejection, pause compatibility, mandate-closure compatibility, and post-settlement state checks.
 
-Deterministic contract code enforces authority-only allocation, bounded storage, exact target/value limits, state transitions, replay protection, challenge deadlines, and downstream consumption gates. GenLayer validators independently fetch the disclosed evidence and assess purpose, recipient, constraints, authority expansion, hidden side effects, and exact target/value/calldata-hash binding.
-
-Authorization fails closed. A result becomes consumable only after the challenge window and only when `is_executable` returns true. Integrators must independently verify the actual target, value, and `keccak256(calldata)` before coordinating execution.
-
-## Why GenLayer consensus is load-bearing
-
-The leader result is not trusted. Validators independently fetch and analyze evidence, then compare the eight load-bearing semantic and binding decisions. Exact agreement is required on those decisions; rationale and evidence-quality prose are diagnostic only. Without GenLayer consensus, a single model or operator could authorize an execution that misrepresents an immutable mandate.
-
-## Challenge fail-safe
-
-A single exact-bond challenge can reopen an authorized or inconclusive review. If re-review remains unavailable, `settle_expired_challenge` provides a permissionless liveness escape hatch after `challenged_at + challenge_window`: it refunds the full held bond to the challenger and cancels the execution. It remains usable during a global pause or after mandate closure, so infrastructure failure cannot trap funds.
-
-Live timeout settlement evidence: [`0x7cc12a99b8323bd9d82c1cfc347413ff36a47914819173502972b10ab50157b3`](https://explorer-studio.genlayer.com/tx/0x7cc12a99b8323bd9d82c1cfc347413ff36a47914819173502972b10ab50157b3).
-
-## Verification evidence
-
-- 28 Direct Mode tests passed.
-- 18 source invariants passed in preflight.
-- GenVM lint and schema generation passed.
-- Studionet verification matrix returned `exactSafety: true`.
-- The live matrix covers safe authorization, challenge/re-review, bond settlement, pause consistency, consumption/replay protection, deterministic rejection, hostile semantic evidence, expiry rejection, cancellation, and timeout refund/cancellation.
-
-See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), [`docs/CONSENSUS.md`](docs/CONSENSUS.md), [`SECURITY.md`](SECURITY.md), and [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for reproducible evidence, design details, and limitations.
+Reproducible deployment and test evidence are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). The contract design and consensus boundaries are documented in [`README.md`](README.md), [`docs/CONSENSUS.md`](docs/CONSENSUS.md), and [`SECURITY.md`](SECURITY.md).
